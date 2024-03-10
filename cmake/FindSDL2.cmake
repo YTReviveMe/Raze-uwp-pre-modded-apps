@@ -70,6 +70,8 @@
 # (To distribute this file outside of CMake, substitute the full
 #  License text for the above reference.)
 
+MESSAGE("SDL2_INCLUDE_DIR is ${CMAKE_CURRENT_BINARY_DIR}/SDL-uwp-gl")
+
 FIND_PATH(SDL2_INCLUDE_DIR SDL.h
   HINTS
   $ENV{SDL2DIR}
@@ -84,8 +86,11 @@ FIND_PATH(SDL2_INCLUDE_DIR SDL.h
   /opt/csw # Blastwave
   /opt
   /boot/system/develop/headers/SDL2 #Hiaku OS
+  ${CMAKE_BINARY_DIR}/SDL-uwp-gl
 )
 #MESSAGE("SDL2_INCLUDE_DIR is ${SDL2_INCLUDE_DIR}")
+
+MESSAGE("SDL2_LIBRARY_TEMP is ${CMAKE_CURRENT_BINARY_DIR}/SDL-uwp-gl/VisualC-WinRT/x64/Release/SDL-UWP")
 
 FIND_LIBRARY(SDL2_LIBRARY_TEMP
   NAMES SDL2
@@ -98,6 +103,7 @@ FIND_LIBRARY(SDL2_LIBRARY_TEMP
   /opt/csw
   /opt
   /system/lib #Hiaku OS
+  ${CMAKE_BINARY_DIR}/SDL-uwp-gl/VisualC-WinRT/x64/Release/SDL-UWP
 )
 
 #MESSAGE("SDL2_LIBRARY_TEMP is ${SDL2_LIBRARY_TEMP}")

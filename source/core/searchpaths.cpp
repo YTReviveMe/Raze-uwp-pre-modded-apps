@@ -66,12 +66,14 @@ void AddSearchPath(TArray<FString>& searchpaths, const char* path)
 	}
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(_WINDOWS_UWP)
 
 void G_AddExternalSearchPaths(TArray<FString> &searchpaths)
 {
+#ifndef _WINDOWS_UWP
 	searchpaths.Append(I_GetSteamPath());
 	searchpaths.Append(I_GetGogPaths());
+#endif
 }
 
 
