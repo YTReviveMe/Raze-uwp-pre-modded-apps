@@ -37,6 +37,11 @@
 
 #include "m_joy.h"
 #include "keydef.h"
+#ifdef _WINDOWS_UWP
+#include <windows.h>
+#endif // _WINDOSW_UWP
+
+
 
 #define DEFAULT_DEADZONE 0.25f;
 
@@ -319,8 +324,13 @@ static SDLInputJoystickManager *JoystickManager;
 void I_StartupJoysticks()
 {
 #ifndef NO_SDL_JOYSTICK
-	if(SDL_InitSubSystem(SDL_INIT_JOYSTICK) >= 0)
+	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) >= 0)
+	{
+#ifdef _WINDOWS_UWP
+		Sleep(100);
+#endif
 		JoystickManager = new SDLInputJoystickManager();
+	}
 #endif
 }
 void I_ShutdownInput()

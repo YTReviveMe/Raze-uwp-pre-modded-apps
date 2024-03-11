@@ -131,8 +131,14 @@ namespace Priv
 
 		if (win_w <= 0 || win_h <= 0)
 		{
+#ifdef _WINDOWS_UWP
+			//always fullscreen
+			win_w = bounds.w;
+			win_h = bounds.h;
+#else
 			win_w = bounds.w * 8 / 10;
 			win_h = bounds.h * 8 / 10;
+#endif // _WINDOWS_UWP
 		}
 
 		FString caption;
