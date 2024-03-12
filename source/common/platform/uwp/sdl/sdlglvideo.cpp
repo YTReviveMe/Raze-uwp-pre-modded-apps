@@ -480,6 +480,13 @@ SystemGLFrameBuffer::SystemGLFrameBuffer(void *hMonitor, bool fullscreen)
 	{
 		I_FatalError("Could not create OpenGL window:\n%s\n",SDL_GetError());
 	}
+
+#ifdef _WINDOWS_UWP
+	int width = GetClientWidth();
+	int height = GetClientHeight();
+
+	SetVirtualSize(width, height);
+#endif
 }
 
 SystemGLFrameBuffer::~SystemGLFrameBuffer ()
