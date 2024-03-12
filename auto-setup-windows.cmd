@@ -56,7 +56,10 @@ if not exist "%~dp0\build" mkdir "%~dp0\build"
 pushd "%~dp0\build"
 
 if exist vcpkg if exist vcpkg\* git -C ./vcpkg pull
-if not exist vcpkg git clone https://github.com/microsoft/vcpkg
+if not exist vcpkg (
+	git clone https://github.com/microsoft/vcpkg
+	git checkout 431eb6bda0950874c8d4ed929cc66e15d8aae46f
+)
 
 if exist zmusic if exist vcpkg\* git -C ./zmusic pull
 if not exist zmusic git clone https://github.com/zdoom/zmusic

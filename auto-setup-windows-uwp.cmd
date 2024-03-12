@@ -86,7 +86,8 @@ cmake -S ./zmusic-uwp -B ./zmusic-uwp/build ^
 	-DCMAKE_CROSSCOMPILING=TRUE ^
 	-DCMAKE_SYSTEM_NAME="WindowsStore" ^
 	-DCMAKE_SYSTEM_VERSION="10.0" ^
-	-DCMAKE_BUILD_TYPE=Release
+	-DCMAKE_BUILD_TYPE=Release ^
+	-DVCPKG_OVERLAY_PORTS=../vcpkg_fix
 cmake --build ./zmusic-uwp/build --config Release -- -maxcpucount -verbosity:minimal
 
 cmake -S .. -B . ^

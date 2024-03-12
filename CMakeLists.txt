@@ -31,6 +31,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 	set(HAVE_VULKAN OFF CACHE BOOL "Enable Vulkan support" FORCE)
 	set(HAVE_GLES2 OFF CACHE BOOL "Enable GLES2 support" FORCE)
 	set( HAVE_VM_JIT OFF )
+	set(VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_LIST_DIR}/vcpkg_fix" CACHE STRING "" FORCE)
+	message("Using vcpkg overlay ${VCPKG_OVERLAY_PORTS}")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows" OR (NOT CMAKE_SYSTEM_NAME AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows"))
 	# Force static triplet on Windows
 	set(VCPKG_TARGET_TRIPLET "x64-windows-static")
