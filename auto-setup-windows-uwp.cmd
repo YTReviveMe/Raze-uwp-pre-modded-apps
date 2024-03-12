@@ -90,6 +90,9 @@ cmake -S ./zmusic-uwp -B ./zmusic-uwp/build ^
 	-DVCPKG_OVERLAY_PORTS=../vcpkg_fix
 cmake --build ./zmusic-uwp/build --config Release -- -maxcpucount -verbosity:minimal
 
+rem -- Placeholder for cmake appx source packing
+copy /b NUL raze.pk3
+
 cmake -S .. -B . ^
 	-DCMAKE_TOOLCHAIN_FILE=../build/vcpkg/scripts/buildsystems/vcpkg.cmake ^
 	-DZMUSIC_INCLUDE_DIR=./zmusic-uwp/include ^
