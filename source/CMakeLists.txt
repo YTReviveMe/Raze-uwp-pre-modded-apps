@@ -1492,6 +1492,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 	)
 
 	set(DepFiles
+		C:/Program\ Files\ \(x86\)/Windows\ Kits/10/Redist/D3D/x64/dxil.dll
 		${CMAKE_BINARY_DIR}/mesa-uwp/opengl32.dll
 		${CMAKE_BINARY_DIR}/mesa-uwp/libglapi.dll
 		${CMAKE_BINARY_DIR}/mesa-uwp/libgallium_wgl.dll
