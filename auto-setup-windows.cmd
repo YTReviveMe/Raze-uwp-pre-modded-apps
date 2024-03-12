@@ -57,8 +57,11 @@ pushd "%~dp0\build"
 
 if exist vcpkg if exist vcpkg\* git -C ./vcpkg pull
 if not exist vcpkg (
+	rem -- meson commit broke pkgconfig
 	git clone https://github.com/microsoft/vcpkg
+	pushd vcpkg
 	git checkout 431eb6bda0950874c8d4ed929cc66e15d8aae46f
+	popd
 )
 
 if exist zmusic if exist vcpkg\* git -C ./zmusic pull
