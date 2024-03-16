@@ -45,90 +45,7 @@
 #include "findfile.h"
 #include "version.h"	// for GAMENAME
 #include "gstrings.h"
-//#include "i_mainwindow.h"
 #include "engineerrors.h"
-//
-//
-//static int isportable = -1;
-//
-////===========================================================================
-////
-//// IsProgramDirectoryWritable
-////
-//// If the program directory is writable, then dump everything in there for
-//// historical reasons. Otherwise, known folders get used instead.
-////
-////===========================================================================
-//
-//bool IsPortable()
-//{
-//	// Cache this value so the semantics don't change during a single run
-//	// of the program. (e.g. Somebody could add write access while the
-//	// program is running.)
-//	HANDLE file;
-//
-//	if (isportable >= 0)
-//	{
-//		return !!isportable;
-//	}
-//
-//	// Consider 'Program Files' read only without actually checking.
-//	bool found = false;
-//	for (auto p : { L"ProgramFiles", L"ProgramFiles(x86)" })
-//	{
-//		wchar_t buffer1[256];
-//		if (GetEnvironmentVariable(p, buffer1, 256))
-//		{
-//			FString envpath(buffer1);
-//			FixPathSeperator(envpath);
-//			if (progdir.MakeLower().IndexOf(envpath.MakeLower()) == 0)
-//			{
-//				isportable = false;
-//				return false;
-//			}
-//		}
-//	}
-//
-//	// A portable INI means that this storage location should also be portable if the file can be written to.
-//	FStringf path("%s" GAMENAMELOWERCASE "_portable.ini", progdir.GetChars());
-//	if (FileExists(path))
-//	{
-//		file = CreateFile(path.WideString().c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
-//			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-//		if (file != INVALID_HANDLE_VALUE)
-//		{
-//			CloseHandle(file);
-//			if (!batchrun) Printf("Using portable configuration\n");
-//			isportable = true;
-//			return true;
-//		}
-//	}
-//
-//	isportable = false;
-//	return false;
-//}
-//
-////===========================================================================
-////
-//// GetKnownFolder
-////
-//// Returns the known_folder from SHGetKnownFolderPath
-////
-////===========================================================================
-//
-//FString GetKnownFolder(int shell_folder, REFKNOWNFOLDERID known_folder, bool create)
-//{
-//	PWSTR wpath;
-//	if (FAILED(SHGetKnownFolderPath(known_folder, create ? KF_FLAG_CREATE : 0, NULL, &wpath)))
-//	{
-//		// This should never be triggered unless the OS was compromised
-//		I_FatalError("Unable to retrieve known folder.");
-//	}
-//	FString path = FString(wpath);
-//	FixPathSeperator(path);
-//	CoTaskMemFree(wpath);
-//	return path;
-//}
 
 //===========================================================================
 //
@@ -138,9 +55,11 @@
 //
 //===========================================================================
 
+extern FString uwp_GetAppDataPath();
+
 FString M_GetAppDataPath(bool create)
 {
-	FString path = ""; // GetKnownFolder(CSIDL_LOCAL_APPDATA, FOLDERID_LocalAppData, create);
+	FString path = uwp_GetAppDataPath(); // GetKnownFolder(CSIDL_LOCAL_APPDATA, FOLDERID_LocalAppData, create);
 
 	path += "/" GAMENAMELOWERCASE;
 	if (create)
@@ -160,7 +79,7 @@ FString M_GetAppDataPath(bool create)
 
 FString M_GetCachePath(bool create)
 {
-	FString path; //= GetKnownFolder(CSIDL_LOCAL_APPDATA, FOLDERID_LocalAppData, create);
+	FString path = uwp_GetAppDataPath(); //= GetKnownFolder(CSIDL_LOCAL_APPDATA, FOLDERID_LocalAppData, create);
 
 	// Don't use GAME_DIR and such so that ZDoom and its child ports can
 	// share the node cache.
@@ -184,85 +103,7 @@ FString M_GetAutoexecPath()
 {
 	return "autoexec.cfg";
 }
-//
-////===========================================================================
-////
-//// M_GetOldConfigPath
-////
-//// Check if we have a config in a place that's no longer used.
-//// 
-////===========================================================================
-//
-//FString M_GetOldConfigPath(int& type)
-//{
-//	FString path;
-//	HRESULT hr;
-//
-//	// construct "$PROGDIR/-$USER.ini"
-//	WCHAR uname[UNLEN + 1];
-//	DWORD unamelen = UNLEN;
-//
-//	path = progdir;
-//	hr = GetUserNameW(uname, &unamelen);
-//	if (SUCCEEDED(hr) && uname[0] != 0)
-//	{
-//		// Is it valid for a user name to have slashes?
-//		// Check for them and substitute just in case.
-//		auto probe = uname;
-//		while (*probe != 0)
-//		{
-//			if (*probe == '\\' || *probe == '/')
-//				*probe = '_';
-//			++probe;
-//		}
-//		path << GAMENAMELOWERCASE "-" << FString(uname) << ".ini";
-//		type = 0;
-//		if (FileExists(path))
-//			return path;
-//	}
-//
-//	// Check in app data where this was previously stored.
-//	// We actually prefer to store the config in a more visible place so this is no longer used.
-//	path = GetKnownFolder(CSIDL_APPDATA, FOLDERID_RoamingAppData, true);
-//	path += "/" GAME_DIR "/" GAMENAMELOWERCASE ".ini";
-//	type = 1;
-//	if (FileExists(path))
-//		return path;
-//
-//	return "";
-//}
-//
-////===========================================================================
-////
-//// M_MigrateOldConfig
-////
-//// Ask the user what to do with their old config.
-//// 
-////===========================================================================
-//
-//int M_MigrateOldConfig()
-//{
-//	int selection = IDCANCEL;
-//	auto globalstr = L"Move to Users/ folder";
-//	auto portablestr = L"Convert to portable installation";
-//	auto cancelstr = L"Cancel";
-//	auto titlestr = L"Migrate existing configuration";
-//	auto infostr = L"" GAMENAME " found a user specific config in the game folder";
-//	const TASKDIALOG_BUTTON buttons[] = { {IDYES, globalstr}, {IDNO, portablestr}, {IDCANCEL, cancelstr} };
-//	TASKDIALOGCONFIG taskDialogConfig = {};
-//	taskDialogConfig.cbSize = sizeof(TASKDIALOGCONFIG);
-//	taskDialogConfig.pszMainIcon = TD_WARNING_ICON;
-//	taskDialogConfig.pButtons = buttons;
-//	taskDialogConfig.cButtons = countof(buttons);
-//	taskDialogConfig.pszWindowTitle = titlestr;
-//	taskDialogConfig.pszContent = infostr;
-//	taskDialogConfig.hwndParent = mainwindow.GetHandle();
-//	taskDialogConfig.dwFlags = TDF_USE_COMMAND_LINKS;
-//	TaskDialogIndirect(&taskDialogConfig, &selection, NULL, NULL);
-//	if (selection == IDYES || selection == IDNO) return selection;
-//	throw CExitEvent(3);
-//}
-//
+
 //===========================================================================
 //
 // M_GetConfigPath													Windows

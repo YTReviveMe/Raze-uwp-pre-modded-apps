@@ -98,6 +98,10 @@ void I_DetectOS()
 
 void I_StartupJoysticks();
 
+#ifdef _WINDOWS_UWP
+FString uwp_GetAppDataPath();
+#endif
+
 int main (int argc, char **argv)
 {
 
@@ -114,7 +118,12 @@ int main (int argc, char **argv)
 
 	Args = new FArgs(argc, argv);
 
+	//Cannot write into exe folder in UWP
+#ifdef _WINDOWS_UWP
+	progdir = uwp_GetAppDataPath() + "\\";
+#else
 	progdir = ".\\";
+#endif
 
 	I_StartupJoysticks();
 
