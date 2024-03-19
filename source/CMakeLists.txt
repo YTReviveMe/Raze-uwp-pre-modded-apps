@@ -149,6 +149,7 @@ endif()
 
 if( NOT NO_OPENAL )
 	if ( NOT DYN_OPENAL )	# DYN_OPENAL uses local copies of the headers.
+		message("Finding Static OPENAL")
 		find_package( OpenAL )
 		mark_as_advanced(CLEAR OPENAL_INCLUDE_DIR)
 		if( OPENAL_INCLUDE_DIR )
@@ -166,6 +167,7 @@ if( NOT NO_OPENAL )
 			set( NO_OPENAL ON )
 		endif()
 	else()
+		message("Using dynamic OPENAL")
 		add_definitions( -DDYN_OPENAL )
 	endif()
 endif()
@@ -1499,6 +1501,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 		${CMAKE_BINARY_DIR}/mesa-uwp/libgallium_wgl.dll
 		${CMAKE_BINARY_DIR}/mesa-uwp/z-1.dll
 		${CMAKE_BINARY_DIR}/SDL-uwp-gl/VisualC-WinRT/x64/Release/SDL-UWP/SDL2.dll
+		${CMAKE_BINARY_DIR}/openal-soft/build/Release/OpenAL32.dll
 		${CMAKE_BINARY_DIR}/ZMusic-uwp/build/source/Release/zmusic.dll
 		${CMAKE_BINARY_DIR}/ZMusic-uwp/build/source/Release/FLAC.dll
 		${CMAKE_BINARY_DIR}/ZMusic-uwp/build/source/Release/libmp3lame.dll

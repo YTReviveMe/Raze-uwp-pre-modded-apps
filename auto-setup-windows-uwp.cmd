@@ -70,6 +70,9 @@ if not exist mesa-uwp (
 if exist zmusic-uwp if exist zmusic-uwp\* git -C ./zmusic-uwp pull
 if not exist zmusic-uwp git clone https://github.com/aerisarn/ZMusic-uwp.git
 
+if exist openal-soft if exist openal-soft\* git -C ./openal-soft pull
+if not exist openal-soft git clone https://github.com/kcat/openal-soft.git
+
 if exist sdl-uwp-gl if exist sdl-uwp-gl\* git -C ./sdl-uwp-gl pull
 if not exist sdl-uwp-gl git clone https://github.com/aerisarn/SDL-uwp-gl.git
 
@@ -89,6 +92,12 @@ cmake -S ./zmusic-uwp -B ./zmusic-uwp/build ^
 	-DCMAKE_BUILD_TYPE=Release ^
 	-DVCPKG_OVERLAY_PORTS=../vcpkg_fix
 cmake --build ./zmusic-uwp/build --config Release -- -maxcpucount -verbosity:minimal
+
+cmake -S ./openal-soft -B ./openal-soft/build ^
+	-DCMAKE_SYSTEM_NAME="WindowsStore" ^
+	-DCMAKE_SYSTEM_VERSION="10.0" ^
+	-DCMAKE_BUILD_TYPE=Release ^
+cmake --build ./openal-soft/build --config Release -- -maxcpucount -verbosity:minimal
 
 rem -- Placeholder for cmake appx source packing
 copy /b NUL raze.pk3
