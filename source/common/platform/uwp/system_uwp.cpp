@@ -65,3 +65,34 @@ void CleanProgressBar()
 {
     //todo
 }
+
+template <typename T>
+void WaitForAsync(IAsyncOperation<T>^ A)
+{
+    while (A->Status == Windows::Foundation::AsyncStatus::Started) {
+        CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
+    }
+
+    Windows::Foundation::AsyncStatus S = A->Status;
+}
+
+int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadflags)
+{
+    int selected = defaultiwad;
+    Windows::UI::Popups::PopupMenu^ popupmenu = ref new Windows::UI::Popups::PopupMenu();
+    for (int i = 0; i < numwads; ++i)
+    {
+        popupmenu->Commands->Append(
+            ref new Windows::UI::Popups::UICommand(
+                StdToPlatform(wads[i].Name.GetChars()),
+                ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i](Windows::UI::Popups::IUICommand^ command)
+                    {
+                        selected = i;
+                    }
+                )
+            )
+        );
+    }
+    WaitForAsync(popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds));
+    return selected;
+}

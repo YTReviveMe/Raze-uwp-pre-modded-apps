@@ -146,6 +146,8 @@ void I_PrintStr(const char *cp)
 	fputs(printData.GetChars(),stdout);
 }
 
+extern int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadflags);
+
 int I_PickIWad (WadStuff *wads, int numwads, bool showwin, int defaultiwad, int& autoloadflags)
 {
 	if (!showwin)
@@ -153,11 +155,7 @@ int I_PickIWad (WadStuff *wads, int numwads, bool showwin, int defaultiwad, int&
 		return defaultiwad;
 	}
 
-#ifdef __APPLE__
-	return I_PickIWad_Cocoa (wads, numwads, showwin, defaultiwad);
-#else
-	return LauncherWindow::ExecModal(wads, numwads, defaultiwad, &autoloadflags);
-#endif
+	return uwp_ChooseWad(wads, numwads, defaultiwad, autoloadflags);
 }
 
 void I_PutInClipboard (const char *str)
