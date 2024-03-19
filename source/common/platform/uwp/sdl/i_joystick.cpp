@@ -43,12 +43,19 @@
 
 
 
-#define DEFAULT_DEADZONE 0.25f;
+#define DEFAULT_DEADZONE 0.25f
 
 // Very small deadzone so that floating point magic doesn't happen
 #define MIN_DEADZONE 0.000001f
 
-class SDLInputJoystick: public IJoystickConfig
+struct IConfigurableJoystick : public IJoystickConfig
+{
+	virtual bool IsValid() const = 0;
+	virtual void AddAxes(float axes[NUM_JOYAXIS]) = 0;
+	virtual void ProcessInput() = 0;
+};
+
+class SDLInputJoystick: public IConfigurableJoystick
 {
 public:
 	SDLInputJoystick(int DeviceIndex) : DeviceIndex(DeviceIndex), Multiplier(1.0f) , Enabled(true)
@@ -172,14 +179,14 @@ public:
 		Enabled = enabled;
 	}
 
-	FString GetIdentifier()
+	virtual FString GetIdentifier()
 	{
 		char id[16];
 		snprintf(id, countof(id), "JS:%d", DeviceIndex);
 		return id;
 	}
 
-	void AddAxes(float axes[NUM_JOYAXIS])
+	virtual void AddAxes(float axes[NUM_JOYAXIS])
 	{
 		// Add to game axes.
 		for (int i = 0; i < GetNumAxes(); ++i)
@@ -274,6 +281,233 @@ protected:
 	friend class SDLInputJoystickManager;
 };
 
+class SDLInputGamepad : public IConfigurableJoystick
+{
+	bool Enabled = true;
+	SDL_GameController* _Gamepad = nullptr;
+
+	//ThumbSticks
+	uint8_t XY_status = 0;
+	uint8_t YawPitch_status = 0;
+	
+	//Triggers
+	uint8_t Left_status = 0;
+	uint8_t Right_status = 0;
+
+	uint8_t DPAD_status = 0;
+	uint8_t Buttons1_status = 0;
+	uint8_t Buttons2_status = 0;
+
+public:
+	SDLInputGamepad(int DeviceIndex)
+	{
+		_Gamepad = SDL_GameControllerOpen(DeviceIndex);
+	}
+
+	virtual ~SDLInputGamepad()
+	{
+		SDL_GameControllerClose(_Gamepad);
+	}
+
+	virtual bool IsValid() const
+	{
+		return _Gamepad != nullptr;
+	}
+
+	virtual FString GetName()
+	{
+		return SDL_GameControllerName(_Gamepad);
+	}
+
+	virtual float GetSensitivity()
+	{
+		return 1.0f;
+	}
+
+	virtual void SetSensitivity(float scale)
+	{
+	}
+
+	virtual int GetNumAxes()
+	{
+		return SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_MAX;
+	}
+
+	virtual float GetAxisDeadZone(int axis)
+	{
+		return 0.0;
+	}
+
+	virtual EJoyAxis GetAxisMap(int axis)
+	{
+		switch (axis)
+		{
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX:
+			return EJoyAxis::JOYAXIS_Side;
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY:
+			return EJoyAxis::JOYAXIS_Forward;
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX:
+			return EJoyAxis::JOYAXIS_Yaw;
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY:
+			return EJoyAxis::JOYAXIS_Pitch;
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+			return EJoyAxis::JOYAXIS_Up;
+		default:
+			break;
+		}
+		return EJoyAxis::JOYAXIS_None;
+	}
+
+	virtual const char* GetAxisName(int axis)
+	{
+		return SDL_GameControllerName(_Gamepad);
+	}
+
+	virtual float GetAxisScale(int axis) { return 1.0; }
+
+	virtual void SetAxisDeadZone(int axis, float zone) {}
+	virtual void SetAxisMap(int axis, EJoyAxis gameaxis) {}
+	virtual void SetAxisScale(int axis, float scale) {}
+
+	bool GetEnabled()
+	{
+		return Enabled;
+	}
+
+	void SetEnabled(bool enabled)
+	{
+		Enabled = enabled;
+	}
+
+	// Used by the saver to not save properties that are at their defaults.
+	virtual bool IsSensitivityDefault() { return true; }
+	virtual bool IsAxisDeadZoneDefault(int axis) { return true; }
+	virtual bool IsAxisMapDefault(int axis) { return true; }
+	virtual bool IsAxisScaleDefault(int axis) { return true; }
+
+	virtual void SetDefaultConfig() {}
+	virtual FString GetIdentifier() { return std::to_string((unsigned long long)_Gamepad).c_str(); }
+
+	float processAxis(SDL_GameControllerAxis axis, double deadzone)
+	{
+		uint8_t status = 0;
+		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
+		Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		return (float)x;
+	}
+
+	uint8_t processAxisAsButton(SDL_GameControllerAxis axis, double deadzone)
+	{
+		uint8_t status = 0;
+		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
+		Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		return status;
+	}
+
+	virtual void AddAxes(float axes[NUM_JOYAXIS]) 
+	{
+		//Movement axis
+		axes[JOYAXIS_Side] = processAxis(SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Forward] = processAxis(SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
+
+		//Aim Axis
+		axes[JOYAXIS_Yaw] = processAxis(SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
+		axes[JOYAXIS_Pitch] = processAxis(SDL_CONTROLLER_AXIS_RIGHTY, DEFAULT_DEADZONE);
+
+		//UP Axis
+		axes[JOYAXIS_Up] = processAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE);
+	}
+
+	virtual void ProcessInput()
+	{
+		//Process all axis as buttons. I don't like it honestly, buttons are buttons
+
+		//process left stick
+		{
+			float x_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
+			float y_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
+
+			uint8_t new_XY_status = Joy_XYAxesToButtons(x_value, y_value);
+			Joy_GenerateButtonEvents(XY_status, new_XY_status, 4, KEY_PAD_LTHUMB_RIGHT);
+			XY_status = new_XY_status;
+		}
+
+		//process right stick
+		{
+			double yaw_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
+			double pitch_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY, MIN_DEADZONE);
+
+			uint8_t new_YawPitch_status = Joy_XYAxesToButtons(yaw_value, pitch_value);
+			Joy_GenerateButtonEvents(YawPitch_status, new_YawPitch_status, 4, KEY_PAD_RTHUMB_RIGHT);
+			YawPitch_status = new_YawPitch_status;
+		}
+
+		//process Left/Right Trigger
+		{
+			uint8_t new_Left_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE) != 0 ? 1 : 0;
+			Joy_GenerateButtonEvents(Left_status, new_Left_status, 1, KEY_PAD_LTRIGGER);
+			Left_status = new_Left_status;
+
+			uint8_t new_Right_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT, DEFAULT_DEADZONE) != 0 ? 1 : 0;
+			Joy_GenerateButtonEvents(Right_status, new_Right_status, 1, KEY_PAD_RTRIGGER);
+			Right_status = new_Right_status;
+		}
+
+		//process DPAD
+		{
+			/*
+				KEY_PAD_DPAD_UP			= 0x1B4,
+				KEY_PAD_DPAD_DOWN		= 0x1B5,
+				KEY_PAD_DPAD_LEFT		= 0x1B6,
+				KEY_PAD_DPAD_RIGHT		= 0x1B7,
+			*/
+			uint8_t new_DPAD_status = 0;
+			new_DPAD_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP);
+			new_DPAD_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN) << 1;
+			new_DPAD_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT) << 2;
+			new_DPAD_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT) << 3;
+			Joy_GenerateButtonEvents(DPAD_status, new_DPAD_status, 4, KEY_PAD_DPAD_UP);
+			DPAD_status = new_DPAD_status;
+		}
+
+		//Process buttons in two sets because we handled triggers as analogs and there's an hole
+
+		/*
+			KEY_PAD_START			= 0x1B8,
+			KEY_PAD_BACK			= 0x1B9,
+			KEY_PAD_LTHUMB			= 0x1BA,
+			KEY_PAD_RTHUMB			= 0x1BB,
+			KEY_PAD_LSHOULDER		= 0x1BC,
+			KEY_PAD_RSHOULDER		= 0x1BD,
+		*/
+
+		uint8_t new_Buttons1_status = 0;
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_START);
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK) << 1;
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK) << 2;
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSTICK) << 3;
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) << 4;
+		new_Buttons1_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) << 5;
+		Joy_GenerateButtonEvents(Buttons1_status, new_Buttons1_status, 6, KEY_PAD_START);
+		Buttons1_status = new_Buttons1_status;
+
+		/*
+			KEY_PAD_A = 0x1C0,
+			KEY_PAD_B = 0x1C1,
+			KEY_PAD_X = 0x1C2,
+			KEY_PAD_Y = 0x1C3,
+		*/
+		
+		uint8_t new_Buttons2_status = 0;
+		new_Buttons2_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A);
+		new_Buttons2_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B) << 1;
+		new_Buttons2_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X) << 2;
+		new_Buttons2_status |= SDL_GameControllerGetButton(_Gamepad, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y) << 3;
+		Joy_GenerateButtonEvents(Buttons2_status, new_Buttons2_status, 4, KEY_PAD_A);
+		Buttons2_status = new_Buttons2_status;
+	}
+};
+
 // [Nash 4 Feb 2024] seems like on Linux, the third axis is actually the Left Trigger, resulting in the player uncontrollably looking upwards.
 const EJoyAxis SDLInputJoystick::DefaultAxes[5] = {JOYAXIS_Side, JOYAXIS_Forward, JOYAXIS_None, JOYAXIS_Yaw, JOYAXIS_Pitch};
 
@@ -284,8 +518,17 @@ public:
 	{
 		for(int i = 0;i < SDL_NumJoysticks();i++)
 		{
-			SDLInputJoystick *device = new SDLInputJoystick(i);
-			if(device->IsValid())
+			IConfigurableJoystick *device = new SDLInputJoystick(i);
+
+			if (SDL_IsGameController(i))
+			{
+				device = new SDLInputGamepad(i);
+			}
+			else {
+				device = new SDLInputJoystick(i);
+			}
+
+			if (device->IsValid())
 				Joysticks.Push(device);
 			else
 				delete device;
@@ -293,8 +536,10 @@ public:
 	}
 	~SDLInputJoystickManager()
 	{
-		for(unsigned int i = 0;i < Joysticks.Size();i++)
+		for (unsigned int i = 0; i < Joysticks.Size(); i++)
+		{
 			delete Joysticks[i];
+		}
 	}
 
 	void AddAxes(float axes[NUM_JOYAXIS])
@@ -314,19 +559,20 @@ public:
 	void ProcessInput() const
 	{
 		for(unsigned int i = 0;i < Joysticks.Size();++i)
-			if(Joysticks[i]->Enabled) Joysticks[i]->ProcessInput();
+			if(Joysticks[i]->GetEnabled()) Joysticks[i]->ProcessInput();
 	}
 protected:
-	TArray<SDLInputJoystick *> Joysticks;
+	TArray<IConfigurableJoystick*> Joysticks;
 };
 static SDLInputJoystickManager *JoystickManager;
 
 void I_StartupJoysticks()
 {
 #ifndef NO_SDL_JOYSTICK
-	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) >= 0)
+	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) >= 0)
 	{
 #ifdef _WINDOWS_UWP
+		//This thread has to wait for SDL_InitSubSystem to register wginputs
 		Sleep(100);
 #endif
 		JoystickManager = new SDLInputJoystickManager();
@@ -338,7 +584,7 @@ void I_ShutdownInput()
 	if(JoystickManager)
 	{
 		delete JoystickManager;
-		SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
+		SDL_QuitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	}
 }
 
