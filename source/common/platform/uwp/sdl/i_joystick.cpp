@@ -392,7 +392,7 @@ public:
 	{
 		uint8_t status = 0;
 		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
-		Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		x = Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
 		return (float)x;
 	}
 
@@ -400,22 +400,22 @@ public:
 	{
 		uint8_t status = 0;
 		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
-		Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		x = Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
 		return status;
 	}
 
 	virtual void AddAxes(float axes[NUM_JOYAXIS]) 
 	{
 		//Movement axis
-		axes[JOYAXIS_Side] = processAxis(SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
-		axes[JOYAXIS_Forward] = processAxis(SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Side] = -processAxis(SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Forward] = -processAxis(SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
 
 		//Aim Axis
-		axes[JOYAXIS_Yaw] = processAxis(SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
-		axes[JOYAXIS_Pitch] = processAxis(SDL_CONTROLLER_AXIS_RIGHTY, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Yaw] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
+		axes[JOYAXIS_Pitch] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTY, DEFAULT_DEADZONE);
 
 		//UP Axis
-		axes[JOYAXIS_Up] = processAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Up] = -processAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE);
 	}
 
 	virtual void ProcessInput()
@@ -434,8 +434,8 @@ public:
 
 		//process right stick
 		{
-			double yaw_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
-			double pitch_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY, MIN_DEADZONE);
+			float yaw_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
+			float pitch_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY, MIN_DEADZONE);
 
 			uint8_t new_YawPitch_status = Joy_XYAxesToButtons(yaw_value, pitch_value);
 			Joy_GenerateButtonEvents(YawPitch_status, new_YawPitch_status, 4, KEY_PAD_RTHUMB_RIGHT);

@@ -459,7 +459,8 @@ void MessagePump (const SDL_Event &sev)
 			}
 		}
 		break;
-
+//This should be actually done inside joy poll
+#if 0
 	case SDL_JOYBUTTONDOWN:
 	case SDL_JOYBUTTONUP:
 		event.type = sev.type == SDL_JOYBUTTONDOWN ? EV_KeyDown : EV_KeyUp;
@@ -467,6 +468,7 @@ void MessagePump (const SDL_Event &sev)
 		if(event.data1 != 0)
 			D_PostEvent(&event);
 		break;
+#endif
 	}
 }
 
