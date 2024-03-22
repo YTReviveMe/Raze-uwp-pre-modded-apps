@@ -317,6 +317,8 @@ public:
 
 	virtual ~SDLInputGamepad()
 	{
+		if (_Gamepad != NULL)
+			M_SaveJoystickConfig(this);
 		SDL_GameControllerClose(_Gamepad);
 	}
 
@@ -347,7 +349,7 @@ public:
 
 	virtual float GetAxisDeadZone(int axis)
 	{
-		return 0.0;
+		return AxisSettings[axis].DeadZone;
 	}
 
 	virtual EJoyAxis GetAxisMap(int axis)
