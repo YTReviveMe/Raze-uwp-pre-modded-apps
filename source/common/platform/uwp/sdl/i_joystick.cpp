@@ -286,6 +286,17 @@ class SDLInputGamepad : public IConfigurableJoystick
 	bool Enabled = true;
 	SDL_GameController* _Gamepad = nullptr;
 
+	//Configuration
+	struct AxisInfo
+	{
+		float DeadZone;
+		float Multiplier;
+	};
+
+	AxisInfo AxisSettings[SDL_CONTROLLER_AXIS_MAX] = { 0 };
+
+	float				Multiplier;
+
 	//ThumbSticks
 	uint8_t XY_status = 0;
 	uint8_t YawPitch_status = 0;
@@ -321,11 +332,12 @@ public:
 
 	virtual float GetSensitivity()
 	{
-		return 1.0f;
+		return Multiplier;
 	}
 
 	virtual void SetSensitivity(float scale)
 	{
+		Multiplier = scale;
 	}
 
 	virtual int GetNumAxes()
@@ -360,14 +372,38 @@ public:
 
 	virtual const char* GetAxisName(int axis)
 	{
-		return SDL_GameControllerName(_Gamepad);
+		switch (axis)
+		{
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX:
+			return "Left Thumb Axis X";
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY:
+			return "Left Thumb Axis Y";
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX:
+			return "Right Thumb Axis X";
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY:
+			return "Right Thumb Axis Y";
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+			return "Left Trigger";
+		case SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+			return "Right Trigger";
+		default:
+			break;
+		}
+		return "Unknown Axis";
 	}
 
-	virtual float GetAxisScale(int axis) { return 1.0; }
+	virtual float GetAxisScale(int axis) 
+	{ 
+		return AxisSettings[axis].Multiplier;
+	}
 
-	virtual void SetAxisDeadZone(int axis, float zone) {}
+	virtual void SetAxisDeadZone(int axis, float zone) {
+		AxisSettings[axis].DeadZone = clamp(zone, MIN_DEADZONE, 1.f);
+	}
 	virtual void SetAxisMap(int axis, EJoyAxis gameaxis) {}
-	virtual void SetAxisScale(int axis, float scale) {}
+	virtual void SetAxisScale(int axis, float scale) {
+		AxisSettings[axis].Multiplier = scale;
+	}
 
 	bool GetEnabled()
 	{
@@ -380,42 +416,52 @@ public:
 	}
 
 	// Used by the saver to not save properties that are at their defaults.
-	virtual bool IsSensitivityDefault() { return true; }
-	virtual bool IsAxisDeadZoneDefault(int axis) { return true; }
+	virtual bool IsSensitivityDefault() { return Multiplier == 1.0f; }
+	virtual bool IsAxisDeadZoneDefault(int axis) { return AxisSettings[axis].DeadZone == DEFAULT_DEADZONE; }
 	virtual bool IsAxisMapDefault(int axis) { return true; }
-	virtual bool IsAxisScaleDefault(int axis) { return true; }
+	virtual bool IsAxisScaleDefault(int axis) { return AxisSettings[axis].Multiplier == 1.0f; }
 
-	virtual void SetDefaultConfig() {}
+	virtual void SetDefaultConfig()
+	{
+		Multiplier = 1.0f;
+		for (int axis = 0; axis < SDL_CONTROLLER_AXIS_MAX; ++axis)
+		{
+			AxisSettings[axis].DeadZone = DEFAULT_DEADZONE;
+			AxisSettings[axis].Multiplier = 1.0f;
+		}
+	}
+
+
 	virtual FString GetIdentifier() { return std::to_string((unsigned long long)_Gamepad).c_str(); }
 
-	float processAxis(SDL_GameControllerAxis axis, double deadzone)
+	float processAxis(SDL_GameControllerAxis axis)
 	{
 		uint8_t status = 0;
 		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
-		x = Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		x = Joy_RemoveDeadZone(x, AxisSettings[axis].DeadZone, &status);
 		return (float)x;
 	}
 
-	uint8_t processAxisAsButton(SDL_GameControllerAxis axis, double deadzone)
+	uint8_t processAxisAsButton(SDL_GameControllerAxis axis)
 	{
 		uint8_t status = 0;
 		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
-		x = Joy_RemoveDeadZone(x, DEFAULT_DEADZONE, &status);
+		x = Joy_RemoveDeadZone(x, AxisSettings[axis].DeadZone, &status);
 		return status;
 	}
 
 	virtual void AddAxes(float axes[NUM_JOYAXIS]) 
 	{
 		//Movement axis
-		axes[JOYAXIS_Side] = -processAxis(SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
-		axes[JOYAXIS_Forward] = -processAxis(SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Side] = -processAxis(SDL_CONTROLLER_AXIS_LEFTX);
+		axes[JOYAXIS_Forward] = -processAxis(SDL_CONTROLLER_AXIS_LEFTY);
 
 		//Aim Axis
-		axes[JOYAXIS_Yaw] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
-		axes[JOYAXIS_Pitch] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTY, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Yaw] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTX);
+		axes[JOYAXIS_Pitch] = -processAxis(SDL_CONTROLLER_AXIS_RIGHTY);
 
 		//UP Axis
-		axes[JOYAXIS_Up] = -processAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE);
+		axes[JOYAXIS_Up] = -processAxis(SDL_CONTROLLER_AXIS_TRIGGERLEFT);
 	}
 
 	virtual void ProcessInput()
@@ -424,8 +470,8 @@ public:
 
 		//process left stick
 		{
-			float x_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX, DEFAULT_DEADZONE);
-			float y_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY, DEFAULT_DEADZONE);
+			float x_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
+			float y_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
 
 			uint8_t new_XY_status = Joy_XYAxesToButtons(x_value, y_value);
 			Joy_GenerateButtonEvents(XY_status, new_XY_status, 4, KEY_PAD_LTHUMB_RIGHT);
@@ -434,8 +480,8 @@ public:
 
 		//process right stick
 		{
-			float yaw_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX, MIN_DEADZONE);
-			float pitch_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY, MIN_DEADZONE);
+			float yaw_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
+			float pitch_value = processAxis(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY);
 
 			uint8_t new_YawPitch_status = Joy_XYAxesToButtons(yaw_value, pitch_value);
 			Joy_GenerateButtonEvents(YawPitch_status, new_YawPitch_status, 4, KEY_PAD_RTHUMB_RIGHT);
@@ -444,11 +490,11 @@ public:
 
 		//process Left/Right Trigger
 		{
-			uint8_t new_Left_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT, DEFAULT_DEADZONE) != 0 ? 1 : 0;
+			uint8_t new_Left_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) != 0 ? 1 : 0;
 			Joy_GenerateButtonEvents(Left_status, new_Left_status, 1, KEY_PAD_LTRIGGER);
 			Left_status = new_Left_status;
 
-			uint8_t new_Right_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT, DEFAULT_DEADZONE) != 0 ? 1 : 0;
+			uint8_t new_Right_status = processAxisAsButton(SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) != 0 ? 1 : 0;
 			Joy_GenerateButtonEvents(Right_status, new_Right_status, 1, KEY_PAD_RTRIGGER);
 			Right_status = new_Right_status;
 		}
@@ -573,7 +619,7 @@ void I_StartupJoysticks()
 	{
 #ifdef _WINDOWS_UWP
 		//This thread has to wait for SDL_InitSubSystem to register wginputs
-		Sleep(100);
+		Sleep(500);
 #endif
 		JoystickManager = new SDLInputJoystickManager();
 	}
