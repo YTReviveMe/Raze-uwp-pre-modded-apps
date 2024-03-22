@@ -434,7 +434,7 @@ public:
 	}
 
 
-	virtual FString GetIdentifier() { return std::to_string((unsigned long long)_Gamepad).c_str(); }
+	virtual FString GetIdentifier() { return SDL_GameControllerGetSerial(_Gamepad); }
 
 	float processAxis(SDL_GameControllerAxis axis)
 	{
