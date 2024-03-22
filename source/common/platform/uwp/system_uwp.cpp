@@ -1,3 +1,6 @@
+#include <filesystem>
+#include <fstream>
+
 #include <wrl.h>
 #include <wrl/client.h>
 #include <dxgi1_4.h>
@@ -40,8 +43,40 @@ FString uwp_GetCWD()
     return maxPath;
 }
 
+std::string PickAFolder();
+
 FString uwp_GetAppDataPath()
 {
+    std::string local_state = PlatformToStd(Windows::Storage::ApplicationData::Current->LocalFolder->Path);
+    std::error_code error_code;
+    if (std::filesystem::exists(local_state, error_code) && 
+        std::filesystem::is_directory(local_state, error_code) && 
+        !error_code)
+    {
+        std::filesystem::path app_data_redirect_file = local_state; app_data_redirect_file /= "redirect_appdata.txt";
+        if (!std::filesystem::exists(app_data_redirect_file, error_code) ||
+            !std::filesystem::is_regular_file(app_data_redirect_file, error_code) ||
+            error_code)
+        {
+            std::filesystem::path new_path = PickAFolder();
+            if (std::filesystem::exists(new_path, error_code) &&
+                std::filesystem::is_directory(new_path, error_code) &&
+                !error_code)
+            {
+                std::ofstream redirect_file_stream(app_data_redirect_file.string(), std::ios::trunc);
+                redirect_file_stream << new_path.string() << std::endl;
+            }
+        }
+        std::ifstream redirect_file_stream(app_data_redirect_file.string());
+        std::string appdata;
+        if (std::getline(redirect_file_stream, appdata) &&
+            std::filesystem::exists(appdata, error_code) && 
+            !error_code)
+        {
+            return appdata.c_str();
+        }
+    }
+
     return PlatformToStd(Windows::Storage::ApplicationData::Current->LocalFolder->Path).c_str();
 }
 
@@ -95,4 +130,23 @@ int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadfla
     }
     WaitForAsync(popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds));
     return selected;
+}
+
+std::string PickAFolder()
+{
+    std::string out = "";
+    auto folderPicker = ref new Windows::Storage::Pickers::FolderPicker();
+    folderPicker->SuggestedStartLocation = Windows::Storage::Pickers::PickerLocationId::Desktop;
+    folderPicker->FileTypeFilter->Append("*");
+
+    auto folder_operation = folderPicker->PickSingleFolderAsync();
+    WaitForAsync(folder_operation);
+    auto folder = folder_operation->GetResults();
+    if (folder != nullptr) {
+        // Application now has read/write access to all contents in the picked file
+        Windows::Storage::AccessCache::StorageApplicationPermissions::FutureAccessList->AddOrReplace("PickedFolderToken", folder);
+        auto selected = folder->Path;
+        out = std::string(selected->Begin(), selected->End());
+    }
+    return out;
 }
