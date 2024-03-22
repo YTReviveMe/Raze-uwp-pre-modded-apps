@@ -289,13 +289,13 @@ class SDLInputGamepad : public IConfigurableJoystick
 	//Configuration
 	struct AxisInfo
 	{
-		float DeadZone;
-		float Multiplier;
+		float DeadZone = DEFAULT_DEADZONE;
+		float Multiplier = 1.0f;
 	};
 
 	AxisInfo AxisSettings[SDL_CONTROLLER_AXIS_MAX] = { 0 };
 
-	float				Multiplier;
+	float Multiplier = 1.0f;
 
 	//ThumbSticks
 	uint8_t XY_status = 0;
@@ -441,6 +441,7 @@ public:
 		uint8_t status = 0;
 		double x = (double)SDL_GameControllerGetAxis(_Gamepad, axis) / (double)INT16_MAX;
 		x = Joy_RemoveDeadZone(x, AxisSettings[axis].DeadZone, &status);
+		x = x * Multiplier * AxisSettings[axis].Multiplier;
 		return (float)x;
 	}
 
