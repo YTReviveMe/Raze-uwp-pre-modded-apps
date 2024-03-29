@@ -66,6 +66,10 @@ FString uwp_GetAppDataPath()
                 std::ofstream redirect_file_stream(app_data_redirect_file.string(), std::ios::trunc);
                 redirect_file_stream << new_path.string() << std::endl;
             }
+            else {
+                std::ofstream redirect_file_stream(app_data_redirect_file.string(), std::ios::trunc);
+                redirect_file_stream << local_state << std::endl;
+            }
         }
         std::ifstream redirect_file_stream(app_data_redirect_file.string());
         std::string appdata;
@@ -130,26 +134,28 @@ std::string PickAFolder()
     return out;
 }
 
+#define MAX_MENU_ENTRIES 6
+
 int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadflags)
 {
-    int selected = -1;
+    int selected = defaultiwad;
     Windows::UI::Popups::PopupMenu^ popupmenu = ref new Windows::UI::Popups::PopupMenu();
 
     int current_base = 0;
     Windows::UI::Popups::IUICommand^ result = nullptr;
 
-
-    if (numwads <= 6)
+    int displacement = min(numwads, MAX_MENU_ENTRIES);
+    while (result == nullptr)
     {
-        selected = defaultiwad;
-        for (int i = 0; i < numwads; ++i)
+        popupmenu->Commands->Clear();
+        for (int i = 0; i < displacement; ++i)
         {
             popupmenu->Commands->Append(
                 ref new Windows::UI::Popups::UICommand(
-                    StdToPlatform(wads[i].Name.GetChars()),
-                    ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i](Windows::UI::Popups::IUICommand^ command)
+                    StdToPlatform(wads[(current_base + i) % numwads].Name.GetChars()),
+                    ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i, current_base, numwads](Windows::UI::Popups::IUICommand^ command)
                         {
-                            selected = i;
+                            selected = (current_base + i) % numwads;
                         }
                     )
                 )
@@ -157,30 +163,10 @@ int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadfla
         }
         auto asyncop = popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds);
         WaitForAsync(asyncop);
-    }
-    else 
-    {
-        while (result == nullptr)
-        {
-            popupmenu->Commands->Clear();
-            for (int i = 0; i < 6; ++i)
-            {
-                popupmenu->Commands->Append(
-                    ref new Windows::UI::Popups::UICommand(
-                        StdToPlatform(wads[(current_base + i) % numwads].Name.GetChars()),
-                        ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i, current_base, numwads](Windows::UI::Popups::IUICommand^ command)
-                            {
-                                selected = (current_base + i) % numwads;
-                            }
-                        )
-                    )
-                );
-            }
-            auto asyncop = popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds);
-            WaitForAsync(asyncop);
-            current_base = (current_base + 6) % numwads;
-            result = asyncop->GetResults();
-        }
+
+        if (numwads > MAX_MENU_ENTRIES)
+            current_base = (current_base + MAX_MENU_ENTRIES) % numwads;
+        result = asyncop->GetResults();
     }
 
     return selected;
