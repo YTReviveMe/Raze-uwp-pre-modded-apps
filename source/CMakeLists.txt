@@ -53,6 +53,12 @@ endif()
 
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+
+	if(NOT CMAKE_WINDOWS_KITS_10_DIR)
+        set(CMAKE_WINDOWS_KITS_10_DIR "C:/Program Files (x86)/Windows Kits/10" CACHE PATH "The specified directory is expected to contain Include/10.0.* directories, where * has to be >= 17763.")
+        message(STATUS "Guessing the Windows Kit directory: ${CMAKE_WINDOWS_KITS_10_DIR}")
+    endif()
+
 	add_definitions( -D_WIN32 )
 	add_definitions( -D_WINDOWS_UWP )
 	add_definitions( -D_WINSOCK_DEPRECATED_NO_WARNINGS )

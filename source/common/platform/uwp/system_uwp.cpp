@@ -111,27 +111,6 @@ void WaitForAsync(IAsyncOperation<T>^ A)
     Windows::Foundation::AsyncStatus S = A->Status;
 }
 
-int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadflags)
-{
-    int selected = defaultiwad;
-    Windows::UI::Popups::PopupMenu^ popupmenu = ref new Windows::UI::Popups::PopupMenu();
-    for (int i = 0; i < numwads; ++i)
-    {
-        popupmenu->Commands->Append(
-            ref new Windows::UI::Popups::UICommand(
-                StdToPlatform(wads[i].Name.GetChars()),
-                ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i](Windows::UI::Popups::IUICommand^ command)
-                    {
-                        selected = i;
-                    }
-                )
-            )
-        );
-    }
-    WaitForAsync(popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds));
-    return selected;
-}
-
 std::string PickAFolder()
 {
     std::string out = "";
@@ -149,4 +128,60 @@ std::string PickAFolder()
         out = std::string(selected->Begin(), selected->End());
     }
     return out;
+}
+
+int uwp_ChooseWad(WadStuff* wads, int numwads, int defaultiwad, int& autoloadflags)
+{
+    int selected = -1;
+    Windows::UI::Popups::PopupMenu^ popupmenu = ref new Windows::UI::Popups::PopupMenu();
+
+    int current_base = 0;
+    Windows::UI::Popups::IUICommand^ result = nullptr;
+
+
+    if (numwads <= 6)
+    {
+        selected = defaultiwad;
+        for (int i = 0; i < numwads; ++i)
+        {
+            popupmenu->Commands->Append(
+                ref new Windows::UI::Popups::UICommand(
+                    StdToPlatform(wads[i].Name.GetChars()),
+                    ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i](Windows::UI::Popups::IUICommand^ command)
+                        {
+                            selected = i;
+                        }
+                    )
+                )
+            );
+        }
+        auto asyncop = popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds);
+        WaitForAsync(asyncop);
+    }
+    else 
+    {
+        while (result == nullptr)
+        {
+            popupmenu->Commands->Clear();
+            for (int i = 0; i < 6; ++i)
+            {
+                popupmenu->Commands->Append(
+                    ref new Windows::UI::Popups::UICommand(
+                        StdToPlatform(wads[(current_base + i) % numwads].Name.GetChars()),
+                        ref new Windows::UI::Popups::UICommandInvokedHandler([&selected, i, current_base, numwads](Windows::UI::Popups::IUICommand^ command)
+                            {
+                                selected = (current_base + i) % numwads;
+                            }
+                        )
+                    )
+                );
+            }
+            auto asyncop = popupmenu->ShowForSelectionAsync(CoreWindow::GetForCurrentThread()->Bounds);
+            WaitForAsync(asyncop);
+            current_base = (current_base + 6) % numwads;
+            result = asyncop->GetResults();
+        }
+    }
+
+    return selected;
 }
